@@ -194,6 +194,25 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
+            #Read commodity data
+            COMMODITY_CODE_DICT = {"0": "Electricity Consumed", "6": "Total Energy Storage/Take Capacity", "7": "Present Energy Storage/Take Capacity"}
+            CODES_WITH_INST = ["6", "7"] #commodity codes with instantaneous rate
+            def final_num(): #helper function to find number at end of line
+                return process.stdout.readline().strip(": ")[1]
+            if("commodity response received" in output_line):
+                for i in range(len(COMMODITY_CODE_DICT.keys())):
+                    with open("commodity_data.txt", "a") as f: #write to file
+                        time = process.stdout.readline().split("INFO")[0].strip() #commodity data line - get time
+                        f.write("\nTime: " + time) 
+                        comm_code = final_num() #get and write commodity code
+                        f.write("\n" + COMMODITY_CODE_DICT[comm_code] + ": ") 
+                        cumulative = final_num() #get and write cumulative value
+                        f.write("\nCumulative: " + cumulative)
+                        if comm_code in CODES_WITH_INST: #get and write instantaneous rate if applicable
+                            inst = final_num()
+                            f.write("\nInstantaneous Rate: " + inst)
+                        f.write("\n")
+                f.write("\n")
 
                 
 

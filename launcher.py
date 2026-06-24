@@ -200,8 +200,8 @@ def run_and_interact():
             def final_num(): #helper function to find number at end of line
                 return process.stdout.readline().strip(": ")[1]
             if("commodity response received" in output_line):
-                for i in range(len(COMMODITY_CODE_DICT.keys())):
-                    with open("commodity_data.txt", "a") as f: #write to file
+                with open("commodity_data.txt", "a") as f: #write to file
+                    for i in range(len(COMMODITY_CODE_DICT.keys())):
                         time = process.stdout.readline().split("INFO")[0].strip() #commodity data line - get time
                         f.write("\nTime: " + time) 
                         comm_code = final_num() #get and write commodity code
@@ -212,7 +212,7 @@ def run_and_interact():
                             inst = final_num()
                             f.write("\nInstantaneous Rate: " + inst)
                         f.write("\n")
-                f.write("\n")
+                    f.write("\n")
 
                 
 

@@ -141,6 +141,7 @@ def run_and_interact():
         print(times)
         print(modes)
         sent = False
+        op_state = "xx"
 
         # main loop
         while True:
@@ -169,6 +170,9 @@ def run_and_interact():
                 attempts = 0
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
+            if "operational state received" in output_line:
+                op_state = process.stdout.readline().strip(": ")[1] #number at end of line
+
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
                 # t += 1 #don't increment here, because of auto resend
@@ -195,15 +199,14 @@ def run_and_interact():
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
             #Read commodity data
-            #will fail if 10 and 11 aren't there
-            COMMODITY_CODE_DICT = {"0": "Electricity Consumed", "6": "Total Energy Storage/Take Capacity", "7": "Present Energy Storage/Take Capacity",
-                                   "10": "Advanced Load Up Total Energy Storage/Take Capacity", "11": "Advanced Load Up Present Energy Storage/Take Capacity"}
-            if("commodity response received" in output_line):
-                with open("commodity_data.txt", "a") as f: #write to file
+            if "commodity response received" in output_line:
+                with open("commodity_data.csv", "a") as f: #write to file
                     f.write("\n")
-                    f.write(process.stdout.readline().split("INFO")[0].strip()) #datetime
-                    for i in range(len(COMMODITY_CODE_DICT.keys())):
-                        f.write(process.stdout.readline().strip(": ")[1]) #number at end of line
+                    f.write(process.stdout.readline().split("INFO")[0].strip() + ", ") #datetime - note, after the time operational state received, it's the time commodity response is received, should be insignificant diff
+                    f.write(op_state)
+                    while not("ack received" in output_line):
+                        f.write(", " + process.stdout.readline().strip(": ")[1]) #number at end of line
+                    
                 
 
     except KeyboardInterrupt:

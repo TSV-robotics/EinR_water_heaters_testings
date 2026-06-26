@@ -170,8 +170,8 @@ def run_and_interact():
                 attempts = 0
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
-            if "operational state received" in output_line:
-                op_state = process.stdout.readline().strip(": ")[1] #number at end of line
+            if "operational state received" in output_line: #operational state for future calculations
+                op_state = int(process.stdout.readline().strip(": ")[1]) #number at end of line
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
@@ -198,14 +198,18 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
-            #Read commodity data
+            #Read commodity data and calculate
+            #alu = advanced load up
+            def calculate(elec_cons_cumul, elec_cons_inst, tot_energy_stor, pres_energy_stor, alu_tot_energy_stor = 1, alu_pres_energy_stor = 1):
+                #this is a placeholder function
+                return elec_cons_cumul + elec_cons_inst + tot_energy_stor + pres_energy_stor + alu_tot_energy_stor + alu_pres_energy_stor
             if "commodity response received" in output_line:
-                with open("commodity_data.csv", "a") as f: #write to file
-                    f.write("\n")
-                    f.write(process.stdout.readline().split("INFO")[0].strip() + ", ") #datetime - note, after the time operational state received, it's the time commodity response is received, should be insignificant diff
-                    f.write(op_state)
-                    while not("ack received" in output_line):
-                        f.write(", " + process.stdout.readline().strip(": ")[1]) #number at end of line
+                #don't need to put in the datetime because it can be calculated with datetime.now()
+                alg_args = [op_state]
+                while not("ack received" in output_line):
+                    alg_args.append(int(process.stdout.readline().strip(": ")[1])) #number at end of line
+                important_value = calculate(*alg_args)
+                print("Calculated value: " + str(important_value))
                     
                 
 

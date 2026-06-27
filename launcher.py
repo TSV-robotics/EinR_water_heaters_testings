@@ -209,7 +209,8 @@ def run_and_interact():
                 while not("ack received" in output_line):
                     alg_args.append(int(process.stdout.readline().strip(": ")[1])) #number at end of line
                 important_value = calculate(*alg_args)
-                print("Calculated value: " + str(important_value))
+                print("[Launcher] Calculated value: " + str(important_value))
+                #expect 0 + 0 + 726 + 375 + 1 + 1 = 1103
                     
                 
 

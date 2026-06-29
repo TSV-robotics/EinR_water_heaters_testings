@@ -56,12 +56,19 @@ sudo apt install vim tmux g++ cmake make -y
 # Install WiringPi (dependency)
 # --------------------------------------------------------------------------
 # Define the URL and filename
-URL="https://github.com/WiringPi/WiringPi/releases/download/3.16/wiringpi_3.16_armhf.deb"
-FILENAME="wiringpi_3.16_armhf.deb"
+# Detect architecture (32‑bit armhf  vs  64‑bit arm64)
+ARCH=$(dpkg --print-architecture)          # returns armhf, arm64, amd64, …
+case "$ARCH" in
+    armhf)  DEB_URL="https://github.com/WiringPi/WiringPi/releases/download/3.18/wiringpi_3.18_armhf.deb" ;;
+    arm64)  DEB_URL="https://github.com/WiringPi/WiringPi/releases/download/3.18/wiringpi_3.18_arm64.deb" ;;
+    *)      echo "Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+FILENAME="${DEB_URL##*/}"    # strip everything up to the last '/'
 
 # Download the file
-echo "Downloading $FILENAME..."
-wget "$URL" -O "$FILENAME"
+echo "Downloading $FILENAME for $ARCH ..."
+wget -q --show-progress "$DEB_URL" -O "$FILENAME"
 
 # Check if download was successful
 if [ $? -ne 0 ]; then

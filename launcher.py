@@ -171,7 +171,7 @@ def run_and_interact():
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
             if "operational state received" in output_line: #operational state for future calculations
-                op_state = int(process.stdout.readline().strip(": ")[1]) #number at end of line
+                op_state = int(output_line.split()[-1].strip()) #number at end of line
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
@@ -200,14 +200,15 @@ def run_and_interact():
 
             #Read commodity data and calculate
             #alu = advanced load up
-            def calculate(elec_cons_cumul, elec_cons_inst, tot_energy_stor, pres_energy_stor, alu_tot_energy_stor = 1, alu_pres_energy_stor = 1):
+            def calculate(opstate, datan1, cc1, elec_cons_cumul, elec_cons_inst, datan2, cc2, tot_energy_stor, ir1, datan3, cc3, pres_energy_stor, ir2, alu_tot_energy_stor = 1, alu_pres_energy_stor = 1):
                 #this is a placeholder function
-                return elec_cons_cumul + elec_cons_inst + tot_energy_stor + pres_energy_stor + alu_tot_energy_stor + alu_pres_energy_stor
+                return opstate + elec_cons_cumul + elec_cons_inst + tot_energy_stor + pres_energy_stor + alu_tot_energy_stor + alu_pres_energy_stor
             if "commodity response received" in output_line:
                 #don't need to put in the datetime because it can be calculated with datetime.now()
                 alg_args = [op_state]
+                output_line = process.stdout.readline()
                 while not("ack received" in output_line):
-                    alg_args.append(int(process.stdout.readline().strip(": ")[1])) #number at end of line
+                    alg_args.append(int(output_line.split(": ")[-1].strip())) #number at end of line
                 important_value = calculate(*alg_args)
                 print("[Launcher] Calculated value: " + str(important_value))
                 #expect 0 + 0 + 726 + 375 + 1 + 1 = 1103

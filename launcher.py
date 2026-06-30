@@ -141,6 +141,7 @@ def run_and_interact():
         print(times)
         print(modes)
         sent = False
+        op_state = "xx"
 
         # main loop
         while True:
@@ -169,6 +170,9 @@ def run_and_interact():
                 attempts = 0
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
+            if "operational state received" in output_line: #operational state for future calculations
+                op_state = int(output_line.split()[-1].strip()) #number at end of line
+
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
                 # t += 1 #don't increment here, because of auto resend
@@ -194,26 +198,21 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
-            #Read commodity data
-            COMMODITY_CODE_DICT = {"0": "Electricity Consumed", "6": "Total Energy Storage/Take Capacity", "7": "Present Energy Storage/Take Capacity"}
-            CODES_WITH_INST = ["6", "7"] #commodity codes with instantaneous rate
-            def final_num(): #helper function to find number at end of line
-                return process.stdout.readline().strip(": ")[1]
-            if("commodity response received" in output_line):
-                with open("commodity_data.txt", "a") as f: #write to file
-                    for i in range(len(COMMODITY_CODE_DICT.keys())):
-                        time = process.stdout.readline().split("INFO")[0].strip() #commodity data line - get time
-                        f.write("\nTime: " + time) 
-                        comm_code = final_num() #get and write commodity code
-                        f.write("\n" + COMMODITY_CODE_DICT[comm_code] + ": ") 
-                        cumulative = final_num() #get and write cumulative value
-                        f.write("\nCumulative: " + cumulative)
-                        if comm_code in CODES_WITH_INST: #get and write instantaneous rate if applicable
-                            inst = final_num()
-                            f.write("\nInstantaneous Rate: " + inst)
-                        f.write("\n")
-                    f.write("\n")
-
+            #Read commodity data and calculate
+            #alu = advanced load up
+            def calculate(opstate, datan1, cc1, elec_cons_cumul, elec_cons_inst, datan2, cc2, tot_energy_stor, ir1, datan3, cc3, pres_energy_stor, ir2, alu_tot_energy_stor = 1, alu_pres_energy_stor = 1):
+                #this is a placeholder function
+                return opstate + elec_cons_cumul + elec_cons_inst + tot_energy_stor + pres_energy_stor + alu_tot_energy_stor + alu_pres_energy_stor
+            if "commodity response received" in output_line:
+                #don't need to put in the datetime because it can be calculated with datetime.now()
+                alg_args = [op_state]
+                output_line = process.stdout.readline()
+                while not("ack received" in output_line):
+                    alg_args.append(int(output_line.split(": ")[-1].strip())) #number at end of line
+                important_value = calculate(*alg_args)
+                print("[Launcher] Calculated value: " + str(important_value))
+                #expect 0 + 0 + 726 + 375 + 1 + 1 = 1103
+                    
                 
 
     except KeyboardInterrupt:

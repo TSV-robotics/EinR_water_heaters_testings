@@ -216,8 +216,8 @@ def run_and_interact():
                     HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heatpump_active, er_active=False)
                     HPWH_initialized = True
                 else:
-                    HPWH.Take_Energy = pres_take_energy
-                    
+                    HPWH.Take_Energy = pres_take_energy      
+                bidding_func.calculate_bid(HPWH)
                 
 
     except KeyboardInterrupt:

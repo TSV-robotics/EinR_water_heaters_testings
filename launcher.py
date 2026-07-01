@@ -4,6 +4,10 @@ import os
 from datetime import datetime, timedelta
 import signal
 import csv
+#access thermal_systems (must be in directory with same parent directory as water_heaters_testings)
+import sys
+sys.path.insert(0, "../thermal_systems/development")
+import hpwh_run_bidding_function_standalone_demo.py as bidding_func
 
 # --- Configuration ---
 # The command to use for elevated privileges.
@@ -18,6 +22,9 @@ prior_mode = 'n'
 most_recent_time = datetime.now() 
 resend_interval = 5 * 60
 NUM_RETRIES = 3
+HP_ACTIVE_CODES = [1, 2, 3, 7, 9, 12, 13]
+HPWH_initialized = False
+op_state = 0 #just a dummy value, will be changed
 
 # def get_choice_to_send():
 #     """
@@ -143,6 +150,9 @@ def run_and_interact():
         sent = False
         op_state = "xx"
 
+        def final_num(line): #return last number in output line
+            return int(line.split()[-1].strip())
+
         # main loop
         while True:
             if process.poll() is not None:
@@ -171,7 +181,9 @@ def run_and_interact():
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
             if "operational state received" in output_line: #operational state for future calculations
-                op_state = int(output_line.split()[-1].strip()) #number at end of line
+                heatpump_active = (final_num(output_line) in HP_ACTIVE_CODES)
+                if HPWH_initialized:
+                    HPWH.HeatPump_Active = heatpump_active
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
@@ -198,20 +210,13 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
-            #Read commodity data and calculate
-            #alu = advanced load up
-            def calculate(opstate, datan1, cc1, elec_cons_cumul, elec_cons_inst, datan2, cc2, tot_energy_stor, ir1, datan3, cc3, pres_energy_stor, ir2, alu_tot_energy_stor = 1, alu_pres_energy_stor = 1):
-                #this is a placeholder function
-                return opstate + elec_cons_cumul + elec_cons_inst + tot_energy_stor + pres_energy_stor + alu_tot_energy_stor + alu_pres_energy_stor
-            if "commodity response received" in output_line:
-                #don't need to put in the datetime because it can be calculated with datetime.now()
-                alg_args = [op_state]
-                output_line = process.stdout.readline()
-                while not("ack received" in output_line):
-                    alg_args.append(int(output_line.split(": ")[-1].strip())) #number at end of line
-                important_value = calculate(*alg_args)
-                print("[Launcher] Calculated value: " + str(important_value))
-                #expect 0 + 0 + 726 + 375 + 1 + 1 = 1103
+            if "code: 7" in output_line: #update take energy - 7 is commodity code for present take energy
+                pres_take_energy = final_num(process.stdout.readline())
+                if not HPWH_initialized: #initialize HPWH obj if not yet initialized using current operating state and take energy
+                    HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heatpump_active, er_active=False)
+                    HPWH_initialized = True
+                else:
+                    HPWH.Take_Energy = pres_take_energy
                     
                 
 

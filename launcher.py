@@ -23,6 +23,7 @@ most_recent_time = datetime.now()
 resend_interval = 5 * 60
 NUM_RETRIES = 3
 HP_ACTIVE_CODES = [1, 2, 3, 7, 9, 12, 13]
+MIN_INTERVAL = 5 #update parameters every 5 minutes, change as needed
 HPWH_initialized = False
 op_state = 0 #just a dummy value, will be changed
 
@@ -154,6 +155,7 @@ def run_and_interact():
             return int(line.split()[-1].strip())
 
         # main loop
+        num_outputs = 0 #number of times commodity data has been outputted, 0 means HPWH not initialized
         while True:
             if process.poll() is not None:
                 print("[Launcher] Subprocess has terminated unexpectedly.")
@@ -180,9 +182,9 @@ def run_and_interact():
                 attempts = 0
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
-            if "operational state received" in output_line: #operational state for future calculations
+            if "operational state received" in output_line: 
                 heatpump_active = (final_num(output_line) in HP_ACTIVE_CODES)
-                if HPWH_initialized:
+                if num_outputs: #heat pump has been initialized - not the first time going through
                     HPWH.HeatPump_Active = heatpump_active
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
@@ -211,13 +213,14 @@ def run_and_interact():
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
             if "code: 7" in output_line: #update take energy - 7 is commodity code for present take energy
-                pres_take_energy = final_num(process.stdout.readline())
-                if not HPWH_initialized: #initialize HPWH obj if not yet initialized using current operating state and take energy
-                    HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heatpump_active, er_active=False)
-                    HPWH_initialized = True
-                else:
-                    HPWH.Take_Energy = pres_take_energy      
-                bidding_func.calculate_bid(HPWH)
+                if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min
+                    pres_take_energy = final_num(process.stdout.readline())
+                    if not num_outputs: #initialize HPWH obj if not yet initialized using current operating state and take energy
+                        HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heatpump_active, er_active=False)
+                    else:
+                        HPWH.Take_Energy = pres_take_energy      
+                    bidding_func.calculate_bid(HPWH)
+                num_outputs += 1
                 
 
     except KeyboardInterrupt:

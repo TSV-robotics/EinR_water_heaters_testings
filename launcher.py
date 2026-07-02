@@ -21,11 +21,11 @@ attempts = 0
 prior_mode = 'n'
 most_recent_time = datetime.now() 
 resend_interval = 5 * 60
+
 NUM_RETRIES = 3
-HP_ACTIVE_CODES = [1, 2, 3, 7, 9, 12, 13]
 MIN_INTERVAL = 5 #update parameters every 5 minutes, change as needed
-HPWH_initialized = False
-op_state = 0 #just a dummy value, will be changed
+inds_to_skip = 6 #number of lines between needed commodity data
+INDS_TO_SKIP_1ST = 2
 
 # def get_choice_to_send():
 #     """
@@ -149,10 +149,12 @@ def run_and_interact():
         print(times)
         print(modes)
         sent = False
-        op_state = "xx"
 
-        def final_num(line): #return last number in output line
-            return int(line.split()[-1].strip())
+        def next_line():
+            return process.stdout.readline()
+
+        def final_num(): #return last number in output line
+            return int(next_line().split()[-1].strip())
 
         # main loop
         num_outputs = 0 #number of times commodity data has been outputted, 0 means HPWH not initialized
@@ -182,11 +184,6 @@ def run_and_interact():
                 attempts = 0
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
-            if "operational state received" in output_line: 
-                heatpump_active = (final_num(output_line) in HP_ACTIVE_CODES)
-                if num_outputs: #heat pump has been initialized - not the first time going through
-                    HPWH.HeatPump_Active = heatpump_active
-
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
                 # t += 1 #don't increment here, because of auto resend
@@ -212,14 +209,35 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
-            if "code: 7" in output_line: #update take energy - 7 is commodity code for present take energy
+            if "code: 0" in output_line: #update parameters of HPWH object
                 if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min
-                    pres_take_energy = final_num(process.stdout.readline())
-                    if not num_outputs: #initialize HPWH obj if not yet initialized using current operating state and take energy
-                        HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heatpump_active, er_active=False)
+                    next_line()
+                    #read electricity consumed -> see if heat pump/electric resistance active
+                    elec_consumed = final_num()
+                    if elec_consumed > 8000:
+                        print(f"[Launcher] Electricity consumed is extremely high at {elec_consumed}")
+                    heat_pump_active = (elec_consumed > 100)
+                    elec_res_active = (elec_consumed > 1200)
+
+                    #get total take energy/capacity 1st time
+                    if not num_outputs:
+                        for i in range(INDS_TO_SKIP_1ST):
+                            next_line()
+                        total_take_energy = final_num()
+                        inds_to_skip = 3
+
+                    for i in range(inds_to_skip):
+                        next_line()
+                    pres_take_energy = final_num()
+                    
+                    if not num_outputs: #initialize HPWH obj if not yet initialized, using current operating state and take energy
+                        HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heat_pump_active, er_active = elec_res_active, total_capacity = total_take_energy)
+                        inds_to_skip = 6 #don't need to get total take capacity anymore
                     else:
-                        HPWH.Take_Energy = pres_take_energy      
-                    bidding_func.calculate_bid(HPWH)
+                        HPWH.Take_Energy = pres_take_energy  
+                        HPWH.HeatPump_Active = heat_pump_active
+                        HPWH.Resistance_Active = elec_res_active    
+                    bid = bidding_func.calculate_bid(HPWH) 
                 num_outputs += 1
                 
 

@@ -27,6 +27,8 @@ MIN_INTERVAL = 5 #update parameters every 5 minutes, change as needed
 inds_to_skip = 6 #number of lines between needed commodity data
 INDS_TO_SKIP_1ST = 2
 
+IS_SCHEDULE_MODE = True #False = transactive mode
+
 # def get_choice_to_send():
 #     """
 #     This function determines what character to send to the sample2 program.
@@ -67,8 +69,9 @@ def run_and_interact():
 
     print("[Launcher] Beginning UCM Launcher Code. To exit program, use Ctrl + c ")
 
-    times, modes = get_schedule(SCHEDULE_PATH)
-    # ack = [False] * len(times)
+    if IS_SCHEDULE_MODE:
+        times, modes = get_schedule(SCHEDULE_PATH)
+        # ack = [False] * len(times)
 
     """
     Launches the sample2 program with sudo and handles the interaction loop.
@@ -145,9 +148,10 @@ def run_and_interact():
         most_recent_time = datetime.now() 
         t = 0
         attempts = 0
-        print("[Launcher] Beginning sending signals using following schedule: ")
-        print(times)
-        print(modes)
+        if IS_SCHEDULE_MODE:
+            print("[Launcher] Beginning sending signals using following schedule: ")
+            print(times)
+            print(modes)
         sent = False
 
         def next_line():
@@ -182,7 +186,8 @@ def run_and_interact():
                 t += 1
                 sent = False
                 attempts = 0
-                print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
+                if IS_SCHEDULE_MODE:
+                    print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
@@ -197,9 +202,10 @@ def run_and_interact():
                 if  (attempts < NUM_RETRIES):
 
                     # mode = modes[t]
-                    command_to_send = str(f"{modes[t]}\n")
-
-                    print(f"[Launcher] Sending '{modes[t]}' to subprocess...")
+                    command_to_send = ""
+                    if IS_SCHEDULE_MODE:
+                        command_to_send = str(f"{modes[t]}\n")
+                        print(f"[Launcher] Sending '{modes[t]}' to subprocess...")
                     process.stdin.write(command_to_send)
                     process.stdin.flush()
                     sent = True
@@ -207,7 +213,8 @@ def run_and_interact():
                     most_recent_time = datetime.now()
                     time.sleep(1) #wait for response
                 else:
-                    print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
+                    if IS_SCHEDULE_MODE:
+                        print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
 
             if "code: 0" in output_line: #update parameters of HPWH object
                 if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min

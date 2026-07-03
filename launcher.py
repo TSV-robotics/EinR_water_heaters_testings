@@ -18,7 +18,7 @@ EXECUTABLE_PATH = 'dcs/build/debug/sample2'
 SCHEDULE_PATH = 'demo_schedule.csv'
 # start_time =  datetime.now() 
 attempts = 0
-prior_mode = 'n'
+prior_mode = 'n' #probably unnecessary
 most_recent_time = datetime.now() 
 resend_interval = 5 * 60
 
@@ -27,7 +27,9 @@ MIN_INTERVAL = 5 #update parameters every 5 minutes, change as needed
 inds_to_skip = 6 #number of lines between needed commodity data
 INDS_TO_SKIP_1ST = 2
 
-IS_SCHEDULE_MODE = True #False = transactive mode
+USING_SCHEDULE = True #False = transactive mode
+SIGNAL_TO_MODE = {1: "l", 0: "e", -1: "s"} 
+mode = "e" #mode to start off on
 
 # def get_choice_to_send():
 #     """
@@ -69,7 +71,7 @@ def run_and_interact():
 
     print("[Launcher] Beginning UCM Launcher Code. To exit program, use Ctrl + c ")
 
-    if IS_SCHEDULE_MODE:
+    if USING_SCHEDULE:
         times, modes = get_schedule(SCHEDULE_PATH)
         # ack = [False] * len(times)
 
@@ -148,7 +150,7 @@ def run_and_interact():
         most_recent_time = datetime.now() 
         t = 0
         attempts = 0
-        if IS_SCHEDULE_MODE:
+        if USING_SCHEDULE:
             print("[Launcher] Beginning sending signals using following schedule: ")
             print(times)
             print(modes)
@@ -186,8 +188,11 @@ def run_and_interact():
                 t += 1
                 sent = False
                 attempts = 0
-                if IS_SCHEDULE_MODE:
-                    print("[Launcher] Preparing to send schedule item", t, "   mode:", modes[t])
+                if USING_SCHEDULE:
+                    mode = modes[t]
+                    print("[Launcher] Preparing to send schedule item", t, "   mode:", mode)
+                else:
+                    print("[Launcher] Preparing to send mode:", mode)
 
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
@@ -200,12 +205,8 @@ def run_and_interact():
                 print("[Launcher] Current times since start: ", dt_start, "   since previous: ", dt_prev)
 
                 if  (attempts < NUM_RETRIES):
-
-                    # mode = modes[t]
-                    command_to_send = ""
-                    if IS_SCHEDULE_MODE:
-                        command_to_send = str(f"{modes[t]}\n")
-                        print(f"[Launcher] Sending '{modes[t]}' to subprocess...")
+                    command_to_send = str(f"{mode}\n") #add newline
+                    print(f"[Launcher] Sending '{mode}' to subprocess...")
                     process.stdin.write(command_to_send)
                     process.stdin.flush()
                     sent = True
@@ -213,8 +214,7 @@ def run_and_interact():
                     most_recent_time = datetime.now()
                     time.sleep(1) #wait for response
                 else:
-                    if IS_SCHEDULE_MODE:
-                        print(f"[Launcher] Not resending '{modes[t]}' because it has failed to acknowledge too many times: {attempts}")
+                    print(f"[Launcher] Not resending '{mode}' because it has failed to acknowledge too many times: {attempts}")
 
             if "code: 0" in output_line: #update parameters of HPWH object
                 if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min
@@ -244,7 +244,11 @@ def run_and_interact():
                         HPWH.Take_Energy = pres_take_energy  
                         HPWH.HeatPump_Active = heat_pump_active
                         HPWH.Resistance_Active = elec_res_active    
-                    bid = bidding_func.calculate_bid(HPWH) 
+                    try:
+                        mode = SIGNAL_TO_MODE[bidding_func.calculate_signal(HPWH)]
+                    except KeyError:
+                        print("[Launcher] Error - signal does not match any modes")
+
                 num_outputs += 1
                 
 

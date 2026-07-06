@@ -7,7 +7,7 @@ import csv
 #access thermal_systems (must be in directory with same parent directory as water_heaters_testings)
 import sys
 sys.path.insert(0, "../thermal_systems/development")
-import hpwh_run_bidding_function_standalone_demo.py as bidding_func
+import hpwh_run_bidding_function_standalone_demo.main as bidding_func
 
 # --- Configuration ---
 # The command to use for elevated privileges.
@@ -29,7 +29,8 @@ INDS_TO_SKIP_1ST = 2
 
 USING_SCHEDULE = True #False = transactive mode
 SIGNAL_TO_MODE = {1: "l", 0: "e", -1: "s"} 
-mode = "e" #mode to start off on
+next_mode = "x" #mode to start off on
+curr_mode = "x" #only used in transactive mode
 
 # def get_choice_to_send():
 #     """
@@ -68,6 +69,7 @@ def run_and_interact():
     global now
     global most_recent_time
     global prior_mode, attempts
+    global next_mode, curr_mode
 
     print("[Launcher] Beginning UCM Launcher Code. To exit program, use Ctrl + c ")
 
@@ -154,6 +156,7 @@ def run_and_interact():
             print("[Launcher] Beginning sending signals using following schedule: ")
             print(times)
             print(modes)
+            next_mode = modes[0]
         sent = False
 
         def next_line():
@@ -184,18 +187,19 @@ def run_and_interact():
             if (dt_prev > resend_interval): # if it's time to automatically resend the command, reset the attempts so it can start sending 
                 attempts = 0
                 sent = False
-            if ((t+1)<len(times)) and (float(times[t+1]) < float(dt_start)): # increment to next line in schedule if next line exists and we're at that time
-                t += 1
+            if USING_SCHEDULE and ((t+1)<len(times)) and (float(times[t+1]) < float(dt_start)): # increment to next line in schedule if next line exists and we're at that time
                 sent = False
                 attempts = 0
-                if USING_SCHEDULE:
-                    mode = modes[t]
-                    print("[Launcher] Preparing to send schedule item", t, "   mode:", mode)
-                else:
-                    print("[Launcher] Preparing to send mode:", mode)
-
+                t += 1
+                next_mode = modes[t]
+                print("[Launcher] Preparing to send schedule item", t, "   mode:", next_mode)
+            elif not USING_SCHEDULE and (not (next_mode == curr_mode)): #send the next mode if it's changing
+                sent = False
+                attempts = 0
+                print("[Launcher] Preparing to send mode:", next_mode)
             if ("app ack received" in output_line): # if acknowledged, don't send again
                 attempts= 0
+                curr_mode = next_mode
                 # t += 1 #don't increment here, because of auto resend
             elif ("app nak received" in output_line):
                 sent = False
@@ -205,8 +209,8 @@ def run_and_interact():
                 print("[Launcher] Current times since start: ", dt_start, "   since previous: ", dt_prev)
 
                 if  (attempts < NUM_RETRIES):
-                    command_to_send = str(f"{mode}\n") #add newline
-                    print(f"[Launcher] Sending '{mode}' to subprocess...")
+                    command_to_send = str(f"{next_mode}\n") #add newline
+                    print(f"[Launcher] Sending '{next_mode}' to subprocess...")
                     process.stdin.write(command_to_send)
                     process.stdin.flush()
                     sent = True
@@ -214,7 +218,7 @@ def run_and_interact():
                     most_recent_time = datetime.now()
                     time.sleep(1) #wait for response
                 else:
-                    print(f"[Launcher] Not resending '{mode}' because it has failed to acknowledge too many times: {attempts}")
+                    print(f"[Launcher] Not resending '{next_mode}' because it has failed to acknowledge too many times: {attempts}")
 
             if "code: 0" in output_line: #update parameters of HPWH object
                 if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min
@@ -226,14 +230,14 @@ def run_and_interact():
                     heat_pump_active = (elec_consumed > 100)
                     elec_res_active = (elec_consumed > 1200)
 
-                    #get total take energy/capacity 1st time
+                    #get total take energy/capacity 1st time from correct line
                     if not num_outputs:
                         for i in range(INDS_TO_SKIP_1ST):
                             next_line()
                         total_take_energy = final_num()
                         inds_to_skip = 3
 
-                    for i in range(inds_to_skip):
+                    for i in range(inds_to_skip): #get present take capacity from correct line
                         next_line()
                     pres_take_energy = final_num()
                     
@@ -244,8 +248,8 @@ def run_and_interact():
                         HPWH.Take_Energy = pres_take_energy  
                         HPWH.HeatPump_Active = heat_pump_active
                         HPWH.Resistance_Active = elec_res_active    
-                    try:
-                        mode = SIGNAL_TO_MODE[bidding_func.calculate_signal(HPWH)]
+                    try: #get next mode from bidding_func
+                        next_mode = SIGNAL_TO_MODE[bidding_func.calculate_signal(HPWH)]
                     except KeyError:
                         print("[Launcher] Error - signal does not match any modes")
 

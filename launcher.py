@@ -29,8 +29,9 @@ INDS_TO_SKIP_1ST = 2
 
 USING_SCHEDULE = True #False = transactive mode
 SIGNAL_TO_MODE = {1: "l", 0: "e", -1: "s"} 
-next_mode = "x" #mode to start off on
+next_mode = "e" #mode to start off on
 curr_mode = "x" #only used in transactive mode
+next_mode_prepped = False
 
 # def get_choice_to_send():
 #     """
@@ -193,8 +194,9 @@ def run_and_interact():
                 t += 1
                 next_mode = modes[t]
                 print("[Launcher] Preparing to send schedule item", t, "   mode:", next_mode)
-            elif not USING_SCHEDULE and (not (next_mode == curr_mode)): #send the next mode if it's changing
+            elif not USING_SCHEDULE and (not next_mode_prepped): #send the next mode if the next mode has changed
                 sent = False
+                next_mode_prepped = True
                 attempts = 0
                 print("[Launcher] Preparing to send mode:", next_mode)
             if ("app ack received" in output_line): # if acknowledged, don't send again
@@ -220,7 +222,7 @@ def run_and_interact():
                 else:
                     print(f"[Launcher] Not resending '{next_mode}' because it has failed to acknowledge too many times: {attempts}")
 
-            if "code: 0" in output_line: #update parameters of HPWH object
+            if not USING_SCHEDULE and ("code: 0" in output_line): #update parameters of HPWH object
                 if num_outputs % MIN_INTERVAL == 0: #every 5 times = 5 min
                     next_line()
                     #read electricity consumed -> see if heat pump/electric resistance active
@@ -250,6 +252,8 @@ def run_and_interact():
                         HPWH.Resistance_Active = elec_res_active    
                     try: #get next mode from bidding_func
                         next_mode = SIGNAL_TO_MODE[bidding_func.calculate_signal(HPWH)]
+                        if not (next_mode == curr_mode):
+                            next_mode_prepped = False
                     except KeyError:
                         print("[Launcher] Error - signal does not match any modes")
 

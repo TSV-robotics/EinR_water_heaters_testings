@@ -31,7 +31,7 @@ USING_SCHEDULE = True #False = transactive mode
 SIGNAL_TO_MODE = {1: "l", 0: "e", -1: "s"} 
 next_mode = "e" #mode to start off on
 curr_mode = "x" #only used in transactive mode
-next_mode_prepped = False
+next_mode_prepped = True
 
 # def get_choice_to_send():
 #     """
@@ -108,7 +108,7 @@ def run_and_interact():
     try:
         # Initialization. Must start by sending a "o" to begin handling outside communication
         i = 0
-        sent = False
+        sent = (not USING_SCHEDULE)
         while i < 77: #catchsafe; expect about at most 30 lines of stuff
             if process.poll() is not None:
                 print("[Launcher] Subprocess has terminated unexpectedly.")

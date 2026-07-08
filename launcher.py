@@ -70,7 +70,7 @@ def run_and_interact():
     global now
     global most_recent_time
     global prior_mode, attempts
-    global next_mode, curr_mode
+    global next_mode, curr_mode, next_mode_prepped
 
     print("[Launcher] Beginning UCM Launcher Code. To exit program, use Ctrl + c ")
 
@@ -108,7 +108,7 @@ def run_and_interact():
     try:
         # Initialization. Must start by sending a "o" to begin handling outside communication
         i = 0
-        sent = (not USING_SCHEDULE)
+        sent = False
         while i < 77: #catchsafe; expect about at most 30 lines of stuff
             if process.poll() is not None:
                 print("[Launcher] Subprocess has terminated unexpectedly.")
@@ -158,7 +158,7 @@ def run_and_interact():
             print(times)
             print(modes)
             next_mode = modes[0]
-        sent = False
+            sent = False
 
         def next_line():
             return process.stdout.readline()

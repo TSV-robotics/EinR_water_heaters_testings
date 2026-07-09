@@ -247,9 +247,7 @@ def run_and_interact():
                         HPWH = bidding_func.HPWH_object(take_energy = pres_take_energy, hp_active = heat_pump_active, er_active = elec_res_active, total_capacity = total_take_energy)
                         inds_to_skip = 6 #don't need to get total take capacity anymore
                     else:
-                        HPWH.Take_Energy = pres_take_energy  
-                        HPWH.HeatPump_Active = heat_pump_active
-                        HPWH.Resistance_Active = elec_res_active    
+                        HPWH.update_params(pres_take_energy, heat_pump_active, elec_res_active)
                     try: #get next mode from bidding_func
                         next_mode = SIGNAL_TO_MODE[bidding_func.calculate_signal(HPWH)]
                         if not (next_mode == curr_mode):

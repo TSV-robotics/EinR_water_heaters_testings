@@ -50,7 +50,7 @@ fi
 # --------------------------------------------------------------------------
 # Install basic dependencies
 # --------------------------------------------------------------------------
-sudo apt install vim tmux g++ cmake make -y
+sudo apt install vim tmux g++ cmake make python3-pandas -y
 
 # --------------------------------------------------------------------------
 # Install WiringPi (dependency)
@@ -134,4 +134,4 @@ make
 
 echo -e "\nInstallation Completed Successfully! :)\n"
 echo -e "\n*** Alert: Please restart your Raspberry Pi before using the launcher script ***\n"
-echo -e "[info] To run the launcher, go to water_heaters_testings/dcs/build/debug \n      Then run \$ sudo launcher.py"
+echo -e "[info] To run the launcher, go to water_heaters_testings \n      Then run \$ sudo launcher.py"

@@ -123,8 +123,9 @@ fi
 # --------------------------------------------------------------------------
 # Begin UCM code installation
 # --------------------------------------------------------------------------
-# go to the directory if we're not there already
-cd /home/pi/water_heaters_testings/dcs
+cd /home/pi/water_heaters_testings # go to the directory if we're not there already
+sudo find . -name "._*" -delete #delete mac metadata files
+cd dcs
 # Install Debug w/Test and Sample
 # following build instructions from https://github.com/PortlandStatePowerLab/water_heaters_testings/tree/main/dcs
 mkdir -p build/debug
